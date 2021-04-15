@@ -1,1 +1,60 @@
-sddcsdc
+  <ItemGroup>
+    <PackageReference Include="Insight.Database" Version="6.3.5" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.Json" Version="5.0.0" />
+  </ItemGroup>
+ 
+ private ReliableConnection azureSQLConnection;
+
+        private SqlConnection azureADONETSQLConnection;
+
+        private readonly IConfiguration _configuration;
+
+        public BowlingRepository(IConfiguration configuration)
+        {
+            this._configuration = configuration;
+
+            var azureSQLDBConnection = this._configuration["AzureSQLDBConnection"];
+
+            this.azureSQLConnection = new ReliableConnection<SqlConnection>(azureSQLDBConnection);
+
+            this.azureADONETSQLConnection = new SqlConnection(azureSQLDBConnection);
+        }
+        
+        
+        
+        
+           public Person GetPerson(string uniqueId)
+        {
+            Person person = new Person();
+
+            person = azureSQLConnection.Connection.QuerySql<Person>("SELECT  * FROM [dbo].[Persons] WHERE UniqueId = @uniqueId", new { uniqueId = uniqueId }).FirstOrDefault();
+
+            var StoredProcedurePerson = azureSQLConnection.Connection.Query<Person>("GetPersonDetails", new { uniqueId = uniqueId }, commandTimeout: 485);
+
+            dynamic dynamicPerson = azureSQLConnection.Connection.QuerySql("SELECT  * FROM [dbo].[Persons] WHERE UniqueId = @uniqueId", new { uniqueId = uniqueId });
+
+            var dataTable = ToDataTable(dynamicPerson);
+
+            return person;
+        }
+        
+        
+        
+        
+        
+         public DataTable ToDataTable(IEnumerable<dynamic> items)
+        {
+            var data = items.ToArray();
+            if (data.Count() == 0) return null;
+
+            var dt = new DataTable();
+            foreach (var key in ((IDictionary<string, object>)data[0]).Keys)
+            {
+                dt.Columns.Add(key);
+            }
+            foreach (var d in data)
+            {
+                dt.Rows.Add(((IDictionary<string, object>)d).Values.ToArray());
+            }
+            return dt;
+        }
